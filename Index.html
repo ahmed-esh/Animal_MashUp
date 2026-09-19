@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animal Mash</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #efe9dc;
+      color: #111;
+    }
+
+    .game {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      position: relative;
+    }
+
+    .specimen-number {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      opacity: 0.45;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 7vw, 92px);
+      line-height: 0.95;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: -0.04em;
+    }
+
+    .parents {
+      margin-top: 14px;
+      font-size: clamp(16px, 2vw, 22px);
+      opacity: 0.65;
+      text-align: center;
+    }
+
+    .creature-frame {
+      width: min(72vw, 760px);
+      height: min(58vh, 520px);
+      margin-top: 28px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      background: #d8d1c3;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.18);
+    }
+
+    .creature-frame img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition:
+        opacity 1.2s ease,
+        transform 3s ease,
+        filter 3s ease;
+    }
+
+    #animal1 {
+      opacity: 0.72;
+      mix-blend-mode: multiply;
+    }
+
+    #animal2 {
+      opacity: 0.72;
+      mix-blend-mode: screen;
+    }
+
+    .split {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255,255,255,0.28);
+      transform: translateX(-1px);
+      pointer-events: none;
+    }
+
+    .status {
+      position: absolute;
+      bottom: 24px;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      opacity: 0.45;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .countdown {
+      position: absolute;
+      right: 28px;
+      top: 24px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      opacity: 0.45;
+    }
+
+    .flash {
+      position: fixed;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 20;
+    }
+
+    .loading-cover {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #d8d1c3;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      z-index: 5;
+      transition: opacity 0.4s ease;
+    }
+
+    .loading-cover.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @media (max-width: 650px) {
+      .creature-frame {
+        width: 90vw;
+        height: 54vh;
+      }
+
+      .specimen-number,
+      .countdown {
+        top: 16px;
+      }
+
+      .specimen-number {
+        left: 16px;
+      }
+
+      .countdown {
+        right: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="game">
+    <div class="specimen-number">
+      SPECIMEN <span id="generation">001</span>
+    </div>
+
+    <div class="countdown">
+      NEXT: <span id="countdown">10</span>
+    </div>
+
+    <h1 id="creatureName">SEARCHING...</h1>
+
+    <div class="parents">
+      <span id="parent1">???</span>
+      +
+      <span id="parent2">???</span>
+    </div>
+
+    <div class="creature-frame">
+      <img id="animal1" alt="">
+      <img id="animal2" alt="">
+      <div class="split"></div>
+
+      <div class="loading-cover" id="loadingCover">
+        Finding questionable biology...
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      Searching Wikipedia for animals...
+    </div>
+  </main>
+
+  <div class="flash" id="flash"></div>
+
+  <script>
+    // Each entry uses a known Wikipedia article title to make image fetching
+    // much more reliable than blindly searching Wikimedia Commons.
+    const animals = [
+      { name: "Camel", title: "Camel" },
+      { name: "Giraffe", title: "Giraffe" },
+      { name: "Elephant", title: "Elephant" },
+      { name: "Lion", title: "Lion" },
+      { name: "Tiger", title: "Tiger" },
+      { name: "Zebra", title: "Zebra" },
+      { name: "Hippopotamus", title: "Hippopotamus" },
+      { name: "Rhinoceros", title: "Rhinoceros" },
+      { name: "Kangaroo", title: "Kangaroo" },
+      { name: "Koala", title: "Koala" },
+      { name: "Giant Panda", title: "Giant panda" },
+      { name: "Gorilla", title: "Gorilla" },
+      { name: "Chimpanzee", title: "Chimpanzee" },
+      { name: "Orangutan", title: "Orangutan" },
+      { name: "Wolf", title: "Wolf" },
+      { name: "Red Fox", title: "Red fox" },
+      { name: "Brown Bear", title: "Brown bear" },
+      { name: "Rabbit", title: "Rabbit" },
+      { name: "Horse", title: "Horse" },
+      { name: "Cow", title: "Cattle" },
+      { name: "Goat", title: "Goat" },
+      { name: "Sheep", title: "Sheep" },
+      { name: "Pig", title: "Pig" },
+      { name: "Dog", title: "Dog" },
+      { name: "Cat", title: "Cat" },
+      { name: "Otter", title: "Otter" },
+      { name: "Beaver", title: "Beaver" },
+      { name: "Raccoon", title: "Raccoon" },
+      { name: "Deer", title: "Deer" },
+      { name: "Moose", title: "Moose" },
+      { name: "Penguin", title: "Penguin" },
+      { name: "Ostrich", title: "Common ostrich" },
+      { name: "Flamingo", title: "Flamingo" },
+      { name: "Peacock", title: "Peafowl" },
+      { name: "Eagle", title: "Eagle" },
+      { name: "Owl", title: "Owl" },
+      { name: "Parrot", title: "Parrot" },
+      { name: "Crow", title: "Crow" },
+      { name: "Crocodile", title: "Crocodile" },
+      { name: "Alligator", title: "Alligator" },
+      { name: "Turtle", title: "Turtle" },
+      { name: "Snake", title: "Snake" },
+      { name: "Iguana", title: "Iguana" },
+      { name: "Frog", title: "Frog" },
+      { name: "Salamander", title: "Salamander" },
+      { name: "Shark", title: "Shark" },
+      { name: "Blue Whale", title: "Blue whale" },
+      { name: "Dolphin", title: "Dolphin" },
+      { name: "Octopus", title: "Octopus" },
+      { name: "Squid", title: "Squid" },
+      { name: "Crab", title: "Crab" },
+      { name: "Lobster", title: "Lobster" },
+      { name: "Jellyfish", title: "Jellyfish" },
+      { name: "Butterfly", title: "Butterfly" },
+      { name: "Bee", title: "Bee" },
+      { name: "Beetle", title: "Beetle" },
+      { name: "Dragonfly", title: "Dragonfly" },
+      { name: "Spider", title: "Spider" },
+      { name: "Scorpion", title: "Scorpion" },
+      { name: "Seal", title: "Pinniped" },
+      { name: "Walrus", title: "Walrus" },
+      { name: "Sloth", title: "Sloth" },
+      { name: "Armadillo", title: "Armadillo" },
+      { name: "Anteater", title: "Anteater" },
+      { name: "Llama", title: "Llama" },
+      { name: "Alpaca", title: "Alpaca" }
+    ];
+
+    const image1 = document.getElementById("animal1");
+    const image2 = document.getElementById("animal2");
+    const creatureName = document.getElementById("creatureName");
+    const parent1 = document.getElementById("parent1");
+    const parent2 = document.getElementById("parent2");
+    const status = document.getElementById("status");
+    const flash = document.getElementById("flash");
+    const generationText = document.getElementById("generation");
+    const countdownText = document.getElementById("countdown");
+    const loadingCover = document.getElementById("loadingCover");
+
+    let generation = 1;
+    let countdown = 10;
+    let isLoading = false;
+
+    function randomAnimal() {
+      return animals[Math.floor(Math.random() * animals.length)];
+    }
+
+    function mashNames(a, b) {
+      const first = a.replace(/\s+/g, "");
+      const second = b.replace(/\s+/g, "");
+
+      const cutA = Math.max(2, Math.ceil(first.length / 2));
+      const cutB = Math.floor(second.length / 2);
+
+      return (
+        first.substring(0, cutA) +
+        second.substring(cutB)
+      ).toUpperCase();
+    }
+
+    async function getAnimalImage(animal) {
+      const endpoint = "https://en.wikipedia.org/w/api.php";
+
+      const params = new URLSearchParams({
+        action: "query",
+        format: "json",
+        origin: "*",
+        redirects: "1",
+        prop: "pageimages",
+        piprop: "thumbnail",
+        pithumbsize: "1200",
+        titles: animal.title
+      });
+
+      const response = await fetch(`${endpoint}?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`Wikipedia request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.query || !data.query.pages) {
+        throw new Error(`No Wikipedia page for ${animal.name}`);
+      }
+
+      const page = Object.values(data.query.pages)[0];
+
+      if (page && page.thumbnail && page.thumbnail.source) {
+        return page.thumbnail.source;
+      }
+
+      throw new Error(`No image available for ${animal.name}`);
+    }
+
+    function preloadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+
+        img.onload = () => resolve(url);
+        img.onerror = () => reject(new Error("Image failed to load"));
+        img.src = url;
+      });
+    }
+
+    function randomBlendMode() {
+      const modes = [
+        "multiply",
+        "screen",
+        "overlay",
+        "soft-light",
+        "hard-light",
+        "difference"
+      ];
+
+      return modes[Math.floor(Math.random() * modes.length)];
+    }
+
+    function randomizeVisuals() {
+      image1.style.transform =
+        `scale(${1.05 + Math.random() * 0.25})
+         rotate(${Math.random() * 8 - 4}deg)
+         translate(${Math.random() * 5 - 2.5}%, ${Math.random() * 5 - 2.5}%)`;
+
+      image2.style.transform =
+        `scale(${1.05 + Math.random() * 0.25})
+         rotate(${Math.random() * 8 - 4}deg)
+         translate(${Math.random() * 5 - 2.5}%, ${Math.random() * 5 - 2.5}%)`;
+
+      image1.style.filter =
+        `contrast(${0.9 + Math.random() * 0.4})
+         saturate(${0.8 + Math.random() * 0.7})`;
+
+      image2.style.filter =
+        `contrast(${0.9 + Math.random() * 0.4})
+         saturate(${0.8 + Math.random() * 0.7})
+         hue-rotate(${Math.random() * 50 - 25}deg)`;
+
+      image1.style.mixBlendMode = randomBlendMode();
+      image2.style.mixBlendMode = randomBlendMode();
+    }
+
+    async function createCreature() {
+      if (isLoading) return;
+      isLoading = true;
+
+      loadingCover.classList.remove("hidden");
+      status.textContent = "Searching Wikipedia for two animals...";
+      creatureName.textContent = "SEARCHING...";
+
+      // Retry a few times automatically if Wikipedia has no image for a page.
+      for (let attempt = 0; attempt < 8; attempt++) {
+        let a = randomAnimal();
+        let b = randomAnimal();
+
+        while (a.title === b.title) {
+          b = randomAnimal();
+        }
+
+        try {
+          const [urlA, urlB] = await Promise.all([
+            getAnimalImage(a),
+            getAnimalImage(b)
+          ]);
+
+          await Promise.all([
+            preloadImage(urlA),
+            preloadImage(urlB)
+          ]);
+
+          parent1.textContent = a.name;
+          parent2.textContent = b.name;
+          creatureName.textContent = mashNames(a.name, b.name);
+          generationText.textContent = String(generation).padStart(3, "0");
+
+          flash.style.opacity = "1";
+
+          setTimeout(() => {
+            image1.src = urlA;
+            image2.src = urlB;
+            image1.alt = a.name;
+            image2.alt = b.name;
+
+            randomizeVisuals();
+
+            flash.style.opacity = "0";
+            loadingCover.classList.add("hidden");
+          }, 180);
+
+          status.textContent =
+            `${a.name} + ${b.name}. Nature has filed a complaint.`;
+
+          generation++;
+          countdown = 10;
+          countdownText.textContent = countdown;
+          isLoading = false;
+          return;
+
+        } catch (error) {
+          console.warn(`Attempt ${attempt + 1} failed:`, error);
+        }
+      }
+
+      status.textContent = "Could not load images. Retrying...";
+      creatureName.textContent = "ESCAPED";
+
+      isLoading = false;
+
+      setTimeout(createCreature, 1500);
+    }
+
+    // Initial creature.
+    createCreature();
+
+    // New hybrid every 10 seconds.
+    setInterval(() => {
+      if (isLoading) return;
+
+      countdown--;
+
+      if (countdown <= 0) {
+        createCreature();
+      } else {
+        countdownText.textContent = countdown;
+      }
+    }, 1000);
+
+    // Make the current hybrid slowly mutate while it is displayed.
+    setInterval(() => {
+      if (!isLoading && image1.src && image2.src) {
+        randomizeVisuals();
+      }
+    }, 3000);
+  </script>
+</body>
+</html>

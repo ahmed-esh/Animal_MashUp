@@ -79,9 +79,8 @@ function drawLandscape(){
 drawLandscape();
 function fitLandscape(){const scale=Math.max(innerWidth/640,innerHeight/360);landscape.style.width=`${640*scale}px`;landscape.style.height=`${360*scale}px`;landscape.style.position='absolute';landscape.style.left=`${(innerWidth-640*scale)/2}px`;landscape.style.top=`${(innerHeight-360*scale)/2}px`}
 fitLandscape();addEventListener('resize',fitLandscape);
-const residents=[];let totalResidents=0;
+const residents=[];
 function spawnResident(name){
-  totalResidents++;
   const el=document.createElement('div');el.className='resident resident-arrival';
   const shadow=document.createElement('div');shadow.className='resident-shadow';
   const label=document.createElement('span');label.className='resident-name';label.textContent=name;
@@ -91,7 +90,6 @@ function spawnResident(name){
   residents.push(r);
   // Bound the active population to keep long-running sessions smooth.
   if(residents.length>24)residents.shift().el.remove();
-  document.getElementById('population').textContent=`${totalResidents} little ${totalResidents===1?'wonder':'wonders'}. And counting.`;
 }
 let lastTime=0,birdAt=4,birdFlight=null,direction=1;
 const bird=document.getElementById('bird');

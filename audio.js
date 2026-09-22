@@ -1,4 +1,4 @@
-// One context, unlocked by a user gesture, also plays the later timed effects.
+// audio
 let audioContext, masterGain, musicSource, musicBuffer, effectBuffer;
 let musicLoading, effectLoading, soundRequested = false, muted = false;
 const soundButton = document.getElementById('soundToggle');

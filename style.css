@@ -10,7 +10,7 @@
 #soundToggle:active,#mixAgainButton:active{transform:translateY(2px) scale(.96)}
 @media(max-width:650px){#soundToggle{width:112px;top:2px;right:5px}#mixAgainButton{width:130px;right:1%;bottom:2%}}
 
-/* Reaction art stays separate from the walking/flipped sprite and its name. */
+/* reaction art */
 .resident .reaction-sign{position:absolute;right:0;top:-13px;width:24px;height:24px;object-fit:contain;image-rendering:pixelated;pointer-events:none;filter:drop-shadow(0 2px 1px #ffffffaa);animation:reaction-pop .25s ease-out both}
 .resident[data-reaction="sleepy"] .resident-sprite{animation:nap 2s ease-in-out infinite alternate;transform-origin:50% 100%}
 .resident[data-reaction="chaotic"]:not(.resting) .resident-sprite{animation:hop .14s ease-in-out infinite alternate}

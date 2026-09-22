@@ -1,4 +1,4 @@
-// The manifest includes every sprite supplied in assests/ANimals.
+// da sprites
 const spriteFiles = ["assests/ANimals/001_1.png", "assests/ANimals/001_2.png", "assests/ANimals/001_3.png", "assests/ANimals/002_1.png", "assests/ANimals/002_2.png", "assests/ANimals/002_3.png", "assests/ANimals/003_1.png", "assests/ANimals/003_2.png", "assests/ANimals/003_3.png", "assests/ANimals/003_4.png", "assests/ANimals/003_5.png", "assests/ANimals/004_1.png", "assests/ANimals/004_2.png", "assests/ANimals/004_3.png", "assests/ANimals/005_1.png", "assests/ANimals/005_2.png", "assests/ANimals/005_3.png", "assests/ANimals/005_4.png", "assests/ANimals/006_1.png", "assests/ANimals/006_2.png", "assests/ANimals/006_3.png", "assests/ANimals/007_1.png", "assests/ANimals/007_2.png", "assests/ANimals/007_3.png", "assests/ANimals/008_1.png", "assests/ANimals/008_2.png", "assests/ANimals/008_3.png", "assests/ANimals/009_1.png", "assests/ANimals/009_2.png", "assests/ANimals/009_3.png", "assests/ANimals/010_1.png", "assests/ANimals/010_2.png", "assests/ANimals/010_3.png", "assests/ANimals/011_1.png", "assests/ANimals/011_2.png", "assests/ANimals/011_3.png", "assests/ANimals/012_1.png", "assests/ANimals/012_2.png", "assests/ANimals/012_3.png", "assests/ANimals/013_1.png", "assests/ANimals/013_2.png", "assests/ANimals/013_3.png", "assests/ANimals/014_1.png", "assests/ANimals/014_2.png", "assests/ANimals/014_3.png", "assests/ANimals/015_1.png", "assests/ANimals/015_2.png", "assests/ANimals/015_3.png", "assests/ANimals/016_1.png", "assests/ANimals/016_2.png", "assests/ANimals/016_3.png", "assests/ANimals/017_1.png", "assests/ANimals/017_2.png", "assests/ANimals/017_3.png", "assests/ANimals/018_1.png", "assests/ANimals/018_2.png", "assests/ANimals/018_3.png", "assests/ANimals/019_1.png", "assests/ANimals/019_2.png", "assests/ANimals/019_3.png", "assests/ANimals/020_1.png", "assests/ANimals/020_2.png", "assests/ANimals/020_3.png", "assests/ANimals/021_1.png", "assests/ANimals/021_2.png", "assests/ANimals/021_3.png", "assests/ANimals/022_1.png", "assests/ANimals/022_2.png", "assests/ANimals/022_3.png", "assests/ANimals/023_1.png", "assests/ANimals/023_2.png", "assests/ANimals/023_3.png", "assests/ANimals/024_1.png", "assests/ANimals/024_2.png", "assests/ANimals/024_3.png", "assests/ANimals/025_1.png", "assests/ANimals/025_2.png", "assests/ANimals/025_3.png", "assests/ANimals/026_1.png", "assests/ANimals/026_2.png", "assests/ANimals/026_3.png", "assests/ANimals/027_1.png", "assests/ANimals/027_2.png", "assests/ANimals/027_3.png", "assests/ANimals/028_1.png", "assests/ANimals/028_2.png", "assests/ANimals/028_3.png", "assests/ANimals/029_1.png", "assests/ANimals/029_2.png", "assests/ANimals/029_3.png", "assests/ANimals/030_1.png", "assests/ANimals/030_2.png", "assests/ANimals/030_3.png", "assests/ANimals/031_1.png", "assests/ANimals/031_2.png", "assests/ANimals/031_3.png"];
 const randomSprite = () => spriteFiles[Math.floor(Math.random()*spriteFiles.length)];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -6,8 +6,7 @@ async function loadAnimal(animal){
   try {const url=await getAnimalImage(animal);return await Promise.race([preloadImage(url),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Image timed out')),6000))])}
   catch {return randomSprite()}
 }
-// Remove only white connected to the outer edge of opaque artwork.
-// This preserves the white MIX lettering and any internal highlights.
+// change
 async function prepareArtwork(path){
   const img=new Image();img.src=path;await img.decode();
   const canvas=document.createElement('canvas');canvas.width=img.width;canvas.height=img.height;
@@ -25,7 +24,7 @@ for(const path of ['assests/button.png','assests/mix again.png','assests/sound o
     if(path.endsWith('screen.png'))document.querySelectorAll('.reveal-photo-wrap').forEach(el=>el.style.backgroundImage=`url("${url}")`);
   }).catch(()=>{});
 }
-// Draw at a low resolution for a crisp, consistent pixel-art landscape.
+// Draws
 const landscape=document.getElementById('landscape'),ctx=landscape.getContext('2d');
 let seed=73;
 function seeded(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
@@ -34,7 +33,7 @@ function puff(x,y,r,color){ctx.fillStyle=color;for(let dy=-r;dy<r;dy+=3){const w
 function drawLandscape(){
   seed=73;const sky=ctx.createLinearGradient(0,0,0,285);sky.addColorStop(0,'#076c91');sky.addColorStop(1,'#078eaf');ctx.fillStyle=sky;ctx.fillRect(0,0,640,360);
   ctx.fillStyle='#51b3c313';for(let y=25;y<220;y+=40)ctx.fillRect(0,y,640,2);
-  // Towering cloud bank, with stepped silhouettes and shaded eastern edges.
+  //  cloud bank
   const clouds=[[0,221,25],[42,213,31],[73,198,35],[123,209,33],[177,202,47],[214,164,48],[266,125,47],[298,77,58],[319,19,61],[359,48,49],[357,112,50],[374,163,50],[415,198,51],[462,216,40],[505,229,31],[597,232,28],[639,210,36]];
   clouds.forEach(([x,y,r])=>puff(x+17,y+4,r,'#4c9fb6'));
   clouds.forEach(([x,y,r])=>puff(x,y,r,'#93bdc4'));
@@ -95,7 +94,7 @@ function spawnResident(name){
   if(personality==='shy')r.speed*=.85;
   el.dataset.reaction='normal';
   residents.push(r);
-  // Nearby curious creatures investigate arrivals; shy ones back away.
+  // shy logic
   for(const other of residents){
     if(other===r || residentDistance(other,r)>230)continue;
     if(other.personality==='curious')react(other,'curious',between(3,5),r);

@@ -19,7 +19,7 @@ async function prepareArtwork(path){
   while(head<tail){const i=queue[head++];if(i%w)add(i-1);if(i%w<w-1)add(i+1);add(i-w);add(i+w)}
   ctx.putImageData(pixels,0,0);return canvas.toDataURL();
 }
-for(const path of ['assests/button.png','assests/tree 1.png','assests/tree 2.png','assests/screen.png']){
+for(const path of ['assests/button.png','assests/mix again.png','assests/sound on.png','assests/sound off.png','assests/tree 1.png','assests/tree 2.png','assests/screen.png']){
   prepareArtwork(path).then(url=>{
     document.querySelectorAll('img').forEach(img=>{if(img.getAttribute('src')===path)img.src=url});
     if(path.endsWith('screen.png'))document.querySelectorAll('.reveal-photo-wrap').forEach(el=>el.style.backgroundImage=`url("${url}")`);

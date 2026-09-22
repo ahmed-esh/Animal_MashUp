@@ -4,8 +4,10 @@ let musicLoading, effectLoading, soundRequested = false, muted = false;
 const soundButton = document.getElementById('soundToggle');
 function updateSoundButton(failed = false) {
   const playing = soundRequested && !muted && audioContext?.state === 'running';
-  soundButton.textContent = failed ? 'Retry sound' : playing ? 'Sound on' : 'Enable sound';
-  soundButton.setAttribute('aria-label', playing ? 'Mute sound' : 'Enable sound');
+  soundButton.setAttribute('data-sound', playing && !failed ? 'on' : 'off');
+  const label = failed ? 'Retry sound' : playing ? 'Mute sound' : 'Enable sound';
+  soundButton.setAttribute('aria-label', label);
+  soundButton.setAttribute('title', label);
   soundButton.setAttribute('aria-pressed', String(playing));
 }
 function reportAudioError(error) {

@@ -2,33 +2,6 @@
 const spriteFiles = ["assests/ANimals/001_1.png", "assests/ANimals/001_2.png", "assests/ANimals/001_3.png", "assests/ANimals/002_1.png", "assests/ANimals/002_2.png", "assests/ANimals/002_3.png", "assests/ANimals/003_1.png", "assests/ANimals/003_2.png", "assests/ANimals/003_3.png", "assests/ANimals/003_4.png", "assests/ANimals/003_5.png", "assests/ANimals/004_1.png", "assests/ANimals/004_2.png", "assests/ANimals/004_3.png", "assests/ANimals/005_1.png", "assests/ANimals/005_2.png", "assests/ANimals/005_3.png", "assests/ANimals/005_4.png", "assests/ANimals/006_1.png", "assests/ANimals/006_2.png", "assests/ANimals/006_3.png", "assests/ANimals/007_1.png", "assests/ANimals/007_2.png", "assests/ANimals/007_3.png", "assests/ANimals/008_1.png", "assests/ANimals/008_2.png", "assests/ANimals/008_3.png", "assests/ANimals/009_1.png", "assests/ANimals/009_2.png", "assests/ANimals/009_3.png", "assests/ANimals/010_1.png", "assests/ANimals/010_2.png", "assests/ANimals/010_3.png", "assests/ANimals/011_1.png", "assests/ANimals/011_2.png", "assests/ANimals/011_3.png", "assests/ANimals/012_1.png", "assests/ANimals/012_2.png", "assests/ANimals/012_3.png", "assests/ANimals/013_1.png", "assests/ANimals/013_2.png", "assests/ANimals/013_3.png", "assests/ANimals/014_1.png", "assests/ANimals/014_2.png", "assests/ANimals/014_3.png", "assests/ANimals/015_1.png", "assests/ANimals/015_2.png", "assests/ANimals/015_3.png", "assests/ANimals/016_1.png", "assests/ANimals/016_2.png", "assests/ANimals/016_3.png", "assests/ANimals/017_1.png", "assests/ANimals/017_2.png", "assests/ANimals/017_3.png", "assests/ANimals/018_1.png", "assests/ANimals/018_2.png", "assests/ANimals/018_3.png", "assests/ANimals/019_1.png", "assests/ANimals/019_2.png", "assests/ANimals/019_3.png", "assests/ANimals/020_1.png", "assests/ANimals/020_2.png", "assests/ANimals/020_3.png", "assests/ANimals/021_1.png", "assests/ANimals/021_2.png", "assests/ANimals/021_3.png", "assests/ANimals/022_1.png", "assests/ANimals/022_2.png", "assests/ANimals/022_3.png", "assests/ANimals/023_1.png", "assests/ANimals/023_2.png", "assests/ANimals/023_3.png", "assests/ANimals/024_1.png", "assests/ANimals/024_2.png", "assests/ANimals/024_3.png", "assests/ANimals/025_1.png", "assests/ANimals/025_2.png", "assests/ANimals/025_3.png", "assests/ANimals/026_1.png", "assests/ANimals/026_2.png", "assests/ANimals/026_3.png", "assests/ANimals/027_1.png", "assests/ANimals/027_2.png", "assests/ANimals/027_3.png", "assests/ANimals/028_1.png", "assests/ANimals/028_2.png", "assests/ANimals/028_3.png", "assests/ANimals/029_1.png", "assests/ANimals/029_2.png", "assests/ANimals/029_3.png", "assests/ANimals/030_1.png", "assests/ANimals/030_2.png", "assests/ANimals/030_3.png", "assests/ANimals/031_1.png", "assests/ANimals/031_2.png", "assests/ANimals/031_3.png"];
 const randomSprite = () => spriteFiles[Math.floor(Math.random()*spriteFiles.length)];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const theme = new Audio('assests/Sound/Theme_Sound.wav');
-theme.loop = true; theme.volume = .32;
-let muted = false, musicStarted = false;
-const effects = new Set();
-function startMusic(){
-  if(muted || document.hidden) return;
-  theme.play().then(()=>{musicStarted=true}).catch(()=>{});
-}
-function playSfx(volume=.6,rate=1){
-  if(muted || document.hidden) return;
-  const sound = new Audio('assests/Sound/SFX.wav');
-  sound.volume=volume; sound.playbackRate=rate;
-  effects.add(sound);sound.onended=()=>effects.delete(sound);
-  sound.play().catch(()=>effects.delete(sound));
-}
-document.getElementById('soundToggle').addEventListener('click',()=>{
-  muted=!muted;
-  const button=document.getElementById('soundToggle');
-  button.textContent=muted?'Sound off':'Sound on';
-  button.setAttribute('aria-label',muted?'Unmute sound':'Mute sound');
-  button.setAttribute('aria-pressed',String(muted));
-  if(muted){theme.pause();effects.forEach(s=>s.pause());effects.clear()}else startMusic();
-});
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){theme.pause();effects.forEach(s=>s.pause());effects.clear()}
-  else if(musicStarted)startMusic();
-});
 async function loadAnimal(animal){
   try {const url=await getAnimalImage(animal);return await Promise.race([preloadImage(url),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Image timed out')),6000))])}
   catch {return randomSprite()}
@@ -49,7 +22,7 @@ async function prepareArtwork(path){
 for(const path of ['assests/button.png','assests/tree 1.png','assests/tree 2.png','assests/screen.png']){
   prepareArtwork(path).then(url=>{
     document.querySelectorAll('img').forEach(img=>{if(img.getAttribute('src')===path)img.src=url});
-    if(path.endsWith('screen.png'))document.querySelectorAll('.reveal-photo-wrap,.creature-frame').forEach(el=>el.style.backgroundImage=`url("${url}")`);
+    if(path.endsWith('screen.png'))document.querySelectorAll('.reveal-photo-wrap').forEach(el=>el.style.backgroundImage=`url("${url}")`);
   }).catch(()=>{});
 }
 // Draw at a low resolution for a crisp, consistent pixel-art landscape.

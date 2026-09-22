@@ -53,35 +53,122 @@ drawLandscape();
 function fitLandscape(){const scale=Math.max(innerWidth/640,innerHeight/360);landscape.style.width=`${640*scale}px`;landscape.style.height=`${360*scale}px`;landscape.style.position='absolute';landscape.style.left=`${(innerWidth-640*scale)/2}px`;landscape.style.top=`${(innerHeight-360*scale)/2}px`}
 fitLandscape();addEventListener('resize',fitLandscape);
 const residents=[];
+const reactionArt={chaotic:'assests/chaotic.png',curious:'assests/curious.png',shy:'assests/SHY.png',sleepy:'assests/sleppy.png'};
+for(const [type,path] of Object.entries(reactionArt)){
+  prepareArtwork(path).then(url=>{
+    reactionArt[type]=url;
+    residents.forEach(r=>{if(r.state===type)r.sign.src=url});
+  }).catch(()=>{});
+}
+const between=(min,max)=>min+Math.random()*(max-min);
+const boundX=x=>Math.max(.03,Math.min(.94,x));
+function treePosition(){
+  const sceneWidth=Math.max(innerWidth,innerHeight*16/9);
+  return boundX(((innerWidth-sceneWidth)/2+sceneWidth*(Math.random()<.5?.175:.282))/innerWidth);
+}
+function react(r,state,duration,focus=null){
+  // A scare can wake a sleeper; other reactions wait until the creature is calm.
+  if(r.cooldown>0 || (r.state!=='normal' && !(r.state==='sleepy' && state==='shy')))return false;
+  r.state=state;r.stateTime=duration;r.focus=focus;r.pause=0;
+  r.sign.src=reactionArt[state];r.sign.classList.remove('hidden');
+  r.el.dataset.reaction=state;
+  if(state==='chaotic')r.target=boundX(r.x+(r.x>.5?-.24:.24));
+  if(state==='shy')r.target=boundX(r.x+(focus&&focus.x>r.x?-.2:.2));
+  return true;
+}
+function calm(r){
+  r.state='normal';r.stateTime=0;r.focus=null;r.cooldown=between(7,13);
+  r.sign.classList.add('hidden');r.el.dataset.reaction='normal';
+  r.pause=between(.6,2);r.target=r.personality==='sleepy'?treePosition():between(.04,.92);
+  r.eventIn=between(12,24);
+}
 function spawnResident(name){
   const el=document.createElement('div');el.className='resident resident-arrival';
   const shadow=document.createElement('div');shadow.className='resident-shadow';
   const label=document.createElement('span');label.className='resident-name';label.textContent=name;
-  const sprite=document.createElement('img');sprite.src=randomSprite();sprite.alt='';
-  el.append(shadow,sprite,label);document.getElementById('residents').append(el);
-  const r={el,x:.28+Math.random()*.45,y:.81+Math.random()*.1,target:Math.random()*.9,speed:.014+Math.random()*.014,pause:0};
+  const sprite=document.createElement('img');sprite.className='resident-sprite';sprite.src=randomSprite();sprite.alt='';
+  const sign=document.createElement('img');sign.className='reaction-sign hidden';sign.alt='';
+  el.append(shadow,sprite,label,sign);document.getElementById('residents').append(el);
+  const personality=['sleepy','curious','shy','chaotic'][Math.floor(Math.random()*4)];
+  const r={el,sprite,sign,personality,x:between(.28,.73),y:between(.81,.91),target:between(.04,.92),speed:between(.014,.028),pause:0,state:'normal',stateTime:0,cooldown:0,eventIn:between(7,16),focus:null};
+  if(personality==='sleepy'){r.speed*=.65;r.target=treePosition()}
+  if(personality==='shy')r.speed*=.85;
+  el.dataset.reaction='normal';
   residents.push(r);
-  // Bound the active population to keep long-running sessions smooth.
-  if(residents.length>24)residents.shift().el.remove();
+  // Nearby curious creatures investigate arrivals; shy ones back away.
+  for(const other of residents){
+    if(other===r || residentDistance(other,r)>230)continue;
+    if(other.personality==='curious')react(other,'curious',between(3,5),r);
+    if(other.personality==='shy')react(other,'shy',between(2,3),r);
+  }
+  if(residents.length>24){
+    const removed=residents.shift();removed.el.remove();
+    residents.forEach(other=>{if(other.focus===removed)calm(other)});
+  }
+}
+function residentDistance(a,b){return Math.hypot((a.x-b.x)*innerWidth,(a.y-b.y)*innerHeight)}
+function noticeBird(){
+  for(const r of residents){if(r.personality==='curious')react(r,'curious',between(3,5),'bird')}
+}
+function updateResident(r,dt){
+  r.cooldown=Math.max(0,r.cooldown-dt);r.eventIn-=dt;
+  if(r.state!=='normal'){
+    r.stateTime-=dt;
+    if(r.stateTime<=0)calm(r);
+  }
+  if(r.state==='normal' || r.state==='sleepy'){
+    const threat=residents.find(other=>other!==r&&other.state==='chaotic'&&residentDistance(r,other)<105);
+    if(threat)react(r,'shy',between(1.8,3),threat);
+  }
+  if(r.state==='normal'&&r.cooldown<=0&&r.eventIn<=0){
+    if(r.personality==='sleepy')react(r,'sleepy',between(4,6));
+    else if(r.personality==='chaotic')react(r,'chaotic',between(2,3.5));
+    else {
+      const nearby=residents.filter(other=>other!==r&&residentDistance(r,other)<170);
+      if(r.personality==='shy'&&nearby.length>=2)react(r,'shy',between(2,3),nearby[0]);
+      else if(r.personality==='curious'&&nearby.length)react(r,'curious',between(3,5),nearby[0]);
+    }
+    r.eventIn=between(10,20);
+  }
+  if(r.state==='curious'){
+    if(r.focus==='bird'){
+      if(birdFlight){const p=birdFlight.elapsed/birdFlight.duration;r.target=boundX(direction>0?p:1-p)}
+      else calm(r);
+    }else if(r.focus){r.target=boundX(r.focus.x+(r.x<r.focus.x?-.055:.055))}
+  }
+  let moving=false;
+  if(!reducedMotion.matches&&r.state!=='sleepy'){
+    if(r.pause>0)r.pause=Math.max(0,r.pause-dt);
+    else {
+      const d=r.target-r.x;
+      if(Math.abs(d)<.006){
+        if(r.state==='normal'){r.pause=between(1,4);r.target=r.personality==='sleepy'?treePosition():between(.04,.92)}
+        else if(r.state==='chaotic')r.target=between(.04,.92);
+      }else{
+        const pace=r.state==='chaotic'?3.8:r.state==='shy'?2.1:r.state==='curious'?1.25:1;
+        r.x=boundX(r.x+Math.sign(d)*Math.min(Math.abs(d),r.speed*pace*dt));
+        r.sprite.style.scale=d>0?'1 1':'-1 1';moving=true;
+      }
+    }
+  }
+  r.el.classList.toggle('resting',!moving);
+  const size=innerWidth<650?60:76;
+  r.el.style.transform=`translate(${Math.max(2,Math.min(innerWidth-size-2,r.x*(innerWidth-size)))}px,${r.y*innerHeight-size}px)`;
+  r.el.style.zIndex=Math.round(r.y*100);
 }
 let lastTime=0,birdAt=4,birdFlight=null,direction=1;
 const bird=document.getElementById('bird');
 function tick(time){
   const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
   if(!document.hidden){
-    for(const r of residents){
-      if(!reducedMotion.matches){
-        if(r.pause>0){r.pause-=dt;r.el.classList.add('resting')}
-        else {const d=r.target-r.x;r.el.classList.remove('resting');if(Math.abs(d)<.006){r.pause=1+Math.random()*4;r.target=.04+Math.random()*.88}else{r.x+=Math.sign(d)*r.speed*dt;r.el.querySelector('img').style.scale=d>0?'1 1':'-1 1'}}
-      }
-      const size=innerWidth<650?60:76;
-      r.el.style.transform=`translate(${Math.max(2,Math.min(innerWidth-size-2,r.x*(innerWidth-size)))}px,${r.y*innerHeight-size}px)`;
-      r.el.style.zIndex=Math.round(r.y*100);
-    }
+    for(const r of residents)updateResident(r,dt);
     if(!reducedMotion.matches){
       birdAt-=dt;
-      if(!birdFlight&&birdAt<=0){direction*=-1;birdFlight={elapsed:0,duration:12+Math.random()*7,height:.12+Math.random()*.22};bird.firstElementChild.style.scale=direction>0?'1 1':'-1 1'}
-      if(birdFlight){const f=birdFlight;f.elapsed+=dt;const p=f.elapsed/f.duration;const x=direction>0?-90+p*(innerWidth+180):innerWidth+90-p*(innerWidth+180);bird.style.transform=`translate(${x+100}px,${Math.sin(p*8)*12}px)`;bird.style.top=`${f.height*100}%`;if(p>=1){birdFlight=null;birdAt=15+Math.random()*20;bird.style.transform='translateX(-100px)'}}
+      if(!birdFlight&&birdAt<=0){
+        direction*=-1;birdFlight={elapsed:0,duration:between(12,19),height:between(.12,.34)};
+        bird.firstElementChild.style.scale=direction>0?'1 1':'-1 1';noticeBird();
+      }
+      if(birdFlight){const f=birdFlight;f.elapsed+=dt;const p=f.elapsed/f.duration;const x=direction>0?-90+p*(innerWidth+180):innerWidth+90-p*(innerWidth+180);bird.style.transform=`translate(${x+100}px,${Math.sin(p*8)*12}px)`;bird.style.top=`${f.height*100}%`;if(p>=1){birdFlight=null;birdAt=between(15,35);bird.style.transform='translateX(-100px)'}}
     }
   }
   requestAnimationFrame(tick);

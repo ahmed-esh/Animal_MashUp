@@ -18,3 +18,12 @@
 @keyframes reaction-pop{from{opacity:0;transform:translateY(5px) scale(.4)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes nap{from{transform:scaleY(.86) rotate(-4deg)}to{transform:scaleY(.91) rotate(-4deg)}}
 @media(max-width:650px){.resident .reaction-sign{width:20px;height:20px;top:-10px;right:-2px}}
+
+.food-drop{position:absolute;left:0;top:0;width:36px;height:36px;object-fit:contain;image-rendering:pixelated;z-index:95;pointer-events:none;filter:drop-shadow(0 3px 2px #173d4966)}
+.resident.fighting .resident-sprite{animation:scuffle .13s steps(2) infinite!important}
+.resident.fighting::after{content:'✦';position:absolute;left:30%;top:10%;font-size:30px;color:#fff2af;text-shadow:2px 2px #805324;animation:scuffle .2s steps(2) infinite}
+.resident[data-reaction="dead"] .resident-sprite{animation:none!important;transform:translateY(16%) rotate(85deg) scale(.85);filter:grayscale(1) brightness(.65);opacity:.8}
+.resident[data-reaction="dead"] .reaction-sign{right:calc(50% - 12px);top:-40px;animation:none;opacity:1;transform:none}
+.resident[data-reaction="dead"] .resident-name{opacity:.65}
+@keyframes scuffle{from{transform:translate(-4px,-3px) rotate(-9deg)}to{transform:translate(4px,0) rotate(9deg)}}
+@media(prefers-reduced-motion:reduce){.resident.fighting .resident-sprite,.resident.fighting::after{animation:none!important}}

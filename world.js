@@ -52,7 +52,7 @@ drawLandscape();
 function fitLandscape(){const scale=Math.max(innerWidth/640,innerHeight/360);landscape.style.width=`${640*scale}px`;landscape.style.height=`${360*scale}px`;landscape.style.position='absolute';landscape.style.left=`${(innerWidth-640*scale)/2}px`;landscape.style.top=`${(innerHeight-360*scale)/2}px`}
 fitLandscape();addEventListener('resize',fitLandscape);
 const residents=[];
-const reactionArt={chaotic:'assests/chaotic.png',curious:'assests/curious.png',shy:'assests/SHY.png',sleepy:'assests/sleppy.png'};
+const reactionArt={chaotic:'assests/chaotic.png',curious:'assests/curious.png',shy:'assests/SHY.png',sleepy:'assests/sleppy.png',dead:'assests/dead.png'};
 for(const [type,path] of Object.entries(reactionArt)){
   prepareArtwork(path).then(url=>{
     reactionArt[type]=url;
@@ -67,7 +67,7 @@ function treePosition(){
 }
 function react(r,state,duration,focus=null){
   // A scare can wake a sleeper; other reactions wait until the creature is calm.
-  if(r.cooldown>0 || (r.state!=='normal' && !(r.state==='sleepy' && state==='shy')))return false;
+  if(r.dead || r.eventRole || r.cooldown>0 || (r.state!=='normal' && !(r.state==='sleepy' && state==='shy')))return false;
   r.state=state;r.stateTime=duration;r.focus=focus;r.pause=0;
   r.sign.src=reactionArt[state];r.sign.classList.remove('hidden');
   r.el.dataset.reaction=state;
@@ -76,6 +76,7 @@ function react(r,state,duration,focus=null){
   return true;
 }
 function calm(r){
+  if(r.dead)return;
   r.state='normal';r.stateTime=0;r.focus=null;r.cooldown=between(7,13);
   r.sign.classList.add('hidden');r.el.dataset.reaction='normal';
   r.pause=between(.6,2);r.target=r.personality==='sleepy'?treePosition():between(.04,.92);
@@ -96,12 +97,13 @@ function spawnResident(name){
   residents.push(r);
   // shy logic
   for(const other of residents){
-    if(other===r || residentDistance(other,r)>230)continue;
+    if(other.dead || other===r || residentDistance(other,r)>230)continue;
     if(other.personality==='curious')react(other,'curious',between(3,5),r);
     if(other.personality==='shy')react(other,'shy',between(2,3),r);
   }
-  if(residents.length>24){
-    const removed=residents.shift();removed.el.remove();
+  if(residents.filter(other=>!other.dead).length>24){
+    const index=residents.findIndex(other=>!other.dead&&!other.eventRole);
+    const [removed]=residents.splice(index,1);removed.el.remove();
     residents.forEach(other=>{if(other.focus===removed)calm(other)});
   }
 }
@@ -110,20 +112,21 @@ function noticeBird(){
   for(const r of residents){if(r.personality==='curious')react(r,'curious',between(3,5),'bird')}
 }
 function updateResident(r,dt){
+  if(r.dead || r.eventRole){renderResident(r);return}
   r.cooldown=Math.max(0,r.cooldown-dt);r.eventIn-=dt;
   if(r.state!=='normal'){
     r.stateTime-=dt;
     if(r.stateTime<=0)calm(r);
   }
   if(r.state==='normal' || r.state==='sleepy'){
-    const threat=residents.find(other=>other!==r&&other.state==='chaotic'&&residentDistance(r,other)<105);
+    const threat=residents.find(other=>!other.dead&&other!==r&&other.state==='chaotic'&&residentDistance(r,other)<105);
     if(threat)react(r,'shy',between(1.8,3),threat);
   }
   if(r.state==='normal'&&r.cooldown<=0&&r.eventIn<=0){
     if(r.personality==='sleepy')react(r,'sleepy',between(4,6));
     else if(r.personality==='chaotic')react(r,'chaotic',between(2,3.5));
     else {
-      const nearby=residents.filter(other=>other!==r&&residentDistance(r,other)<170);
+      const nearby=residents.filter(other=>!other.dead&&other!==r&&residentDistance(r,other)<170);
       if(r.personality==='shy'&&nearby.length>=2)react(r,'shy',between(2,3),nearby[0]);
       else if(r.personality==='curious'&&nearby.length)react(r,'curious',between(3,5),nearby[0]);
     }
@@ -151,23 +154,116 @@ function updateResident(r,dt){
     }
   }
   r.el.classList.toggle('resting',!moving);
+  renderResident(r);
+}
+function renderResident(r){
   const size=innerWidth<650?60:76;
   r.el.style.transform=`translate(${Math.max(2,Math.min(innerWidth-size-2,r.x*(innerWidth-size)))}px,${r.y*innerHeight-size}px)`;
   r.el.style.zIndex=Math.round(r.y*100);
+}
+// Food events have one owner so only one racer can win and one victim can die.
+let foodEvent=null,foodCooldown=between(20,40),foodArt='assests/food.png';
+prepareArtwork(foodArt).then(url=>{foodArt=url;if(foodEvent)foodEvent.el.src=url}).catch(()=>{});
+function canDropFood(){
+  const living=residents.filter(r=>!r.dead);
+  return !foodEvent&&foodCooldown<=0&&living.length>=6&&living.some(r=>r.personality==='chaotic');
+}
+function setEventRole(r,role,reaction){
+  r.eventRole=role;r.state=reaction;r.focus=null;r.pause=0;
+  r.el.dataset.reaction=reaction;r.sign.src=reactionArt[reaction];r.sign.classList.remove('hidden');
+  r.el.classList.toggle('resting',role!=='racing'&&role!=='attacking');
+}
+function startFoodDrop(progress,height){
+  if(!canDropFood())return false;
+  const el=document.createElement('img');el.className='food-drop';el.src=foodArt;el.alt='';
+  document.getElementById('residents').append(el);
+  const birdX=direction>0?-90+progress*(innerWidth+180):innerWidth+90-progress*(innerWidth+180);
+  const size=innerWidth<650?60:76;
+  const x=boundX((birdX+32-size/2)/(innerWidth-size));
+  const racers=residents.filter(r=>!r.dead&&r.personality==='chaotic');
+  foodEvent={el,x,y:between(.83,.89),fromY:height*innerHeight+50,phase:'falling',time:0,racers,winner:null,victim:null};
+  racers.forEach(r=>setEventRole(r,'racing','chaotic'));
+  return true;
+}
+function groundPoint(r){
+  const size=innerWidth<650?60:76;
+  return {x:r.x*(innerWidth-size)+size/2,y:r.y*innerHeight-8};
+}
+function moveToEvent(r,target,dt){
+  const a=groundPoint(r),b=groundPoint(target),distance=Math.hypot(b.x-a.x,b.y-a.y);
+  const step=r.speed*innerWidth*4.2*dt;
+  const fraction=distance>0?Math.min(1,step/distance):1;
+  r.x+=(target.x-r.x)*fraction;r.y+=(target.y-r.y)*fraction;
+  if(Math.abs(b.x-a.x)>1)r.sprite.style.scale=b.x>a.x?'1 1':'-1 1';
+  return distance<=step+12;
+}
+function killResident(r){
+  if(r.dead)return;
+  r.dead=true;r.eventRole=null;r.state='dead';r.stateTime=Infinity;r.focus=null;
+  r.el.dataset.reaction='dead';r.el.classList.add('resting');r.el.classList.remove('fighting');
+  r.sign.src=reactionArt.dead;r.sign.classList.remove('hidden');r.sprite.style.scale='1 1';
+  residents.forEach(other=>{if(other.focus===r)calm(other)});
+}
+function finishFoodEvent(){
+  if(!foodEvent)return;
+  for(const r of residents){
+    if(r.eventRole){r.eventRole=null;r.el.classList.remove('fighting');calm(r)}
+  }
+  foodEvent.el.remove();foodEvent=null;foodCooldown=between(35,65);
+}
+function updateFoodEvent(dt){
+  const event=foodEvent;if(!event)return;
+  event.time+=dt;
+  const point=groundPoint(event);
+  if(event.phase==='falling'){
+    const p=Math.min(1,event.time/1.4);
+    event.el.style.transform=`translate(${point.x-18}px,${event.fromY+(point.y-event.fromY)*p*p-30}px) rotate(${p*180}deg)`;
+    if(p>=1){event.phase='racing';event.time=0}
+    return;
+  }
+  if(event.phase==='racing'){
+    event.el.style.transform=`translate(${point.x-18}px,${point.y-30}px)`;
+    // Compare arrival times before moving anyone, rather than favoring array order.
+    const arrivals=event.racers.map(r=>({r,time:Math.max(0,Math.hypot(groundPoint(r).x-point.x,groundPoint(r).y-point.y)-12)/(r.speed*innerWidth*4.2)}));
+    event.racers.forEach(r=>moveToEvent(r,event,dt));
+    const first=arrivals.filter(a=>a.time<=dt).sort((a,b)=>a.time-b.time)[0];
+    if(first){
+      event.winner=first.r;event.el.classList.add('hidden');event.phase='eating';event.time=0;
+      setEventRole(first.r,'eating','chaotic');
+      event.racers.forEach(r=>{if(r!==first.r){r.eventRole=null;calm(r)}});
+    }else if(event.time>35)finishFoodEvent();
+    return;
+  }
+  if(event.phase==='eating'&&event.time>=.7){
+    event.victim=residents.filter(r=>!r.dead&&r!==event.winner).sort((a,b)=>residentDistance(event.winner,a)-residentDistance(event.winner,b))[0];
+    if(!event.victim){finishFoodEvent();return}
+    setEventRole(event.winner,'attacking','chaotic');setEventRole(event.victim,'defending','shy');
+    event.phase='approaching';event.time=0;
+  }
+  if(event.phase==='approaching'){
+    if(moveToEvent(event.winner,event.victim,dt)){
+      event.phase='fighting';event.time=0;
+      event.winner.el.classList.add('fighting');event.victim.el.classList.add('fighting');
+    }else if(event.time>35)finishFoodEvent();
+  }else if(event.phase==='fighting'&&event.time>=1.2){
+    killResident(event.victim);finishFoodEvent();
+  }
 }
 let lastTime=0,birdAt=4,birdFlight=null,direction=1;
 const bird=document.getElementById('bird');
 function tick(time){
   const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
   if(!document.hidden){
+    foodCooldown=Math.max(0,foodCooldown-dt);
+    updateFoodEvent(dt);
     for(const r of residents)updateResident(r,dt);
     if(!reducedMotion.matches){
       birdAt-=dt;
       if(!birdFlight&&birdAt<=0){
-        direction*=-1;birdFlight={elapsed:0,duration:between(12,19),height:between(.12,.34)};
+        direction*=-1;birdFlight={elapsed:0,duration:between(12,19),height:between(.12,.34),dropAt:canDropFood()&&Math.random()<.45?between(.35,.65):null};
         bird.firstElementChild.style.scale=direction>0?'1 1':'-1 1';noticeBird();
       }
-      if(birdFlight){const f=birdFlight;f.elapsed+=dt;const p=f.elapsed/f.duration;const x=direction>0?-90+p*(innerWidth+180):innerWidth+90-p*(innerWidth+180);bird.style.transform=`translate(${x+100}px,${Math.sin(p*8)*12}px)`;bird.style.top=`${f.height*100}%`;if(p>=1){birdFlight=null;birdAt=between(15,35);bird.style.transform='translateX(-100px)'}}
+      if(birdFlight){const f=birdFlight;f.elapsed+=dt;const p=f.elapsed/f.duration;if(f.dropAt!==null&&f.dropAt!==undefined&&p>=f.dropAt){f.dropAt=null;startFoodDrop(p,f.height)}const x=direction>0?-90+p*(innerWidth+180):innerWidth+90-p*(innerWidth+180);bird.style.transform=`translate(${x+100}px,${Math.sin(p*8)*12}px)`;bird.style.top=`${f.height*100}%`;if(p>=1){birdFlight=null;birdAt=between(15,35);bird.style.transform='translateX(-100px)'}}
     }
   }
   requestAnimationFrame(tick);

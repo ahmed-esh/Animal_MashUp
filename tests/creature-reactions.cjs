@@ -54,3 +54,40 @@ test('population stays bounded and observers release removed targets',()=>{
   const {run}=setup();run('spawnResident("FIRST");var first=residents[0];spawnResident("SECOND");var watcher=residents[1];watcher.focus=first;for(let i=0;i<23;i++)spawnResident("EXTRA")');
   assert.equal(run('residents.length'),24);assert.equal(run('first.el.removed'),true);assert.notEqual(run('watcher.focus'),run('first'));
 });
+test('food drops require six living creatures, a chaotic racer, and no active event',()=>{
+  const {run}=setup();
+  run('foodCooldown=0;for(let i=0;i<5;i++)spawnResident("TEST");residents.forEach(r=>r.personality="chaotic")');
+  assert.equal(run('startFoodDrop(.5,.2)'),false);
+  run('spawnResident("SIXTH");residents.forEach(r=>r.personality="sleepy")');
+  assert.equal(run('canDropFood()'),false);
+  run('residents[0].personality="chaotic"');assert.equal(run('startFoodDrop(.5,.2)'),true);
+  assert.equal(run('startFoodDrop(.5,.2)'),false);
+  run('finishFoodEvent();foodCooldown=0;killResident(residents[5])');
+  assert.equal(run('canDropFood()'),false);
+});
+test('first arrival wins, eats, kills one opponent, then returns to normal',()=>{
+  const {run}=setup();
+  run('for(let i=0;i<6;i++)spawnResident("TEST");residents.forEach(r=>r.personality="sleepy");residents[0].personality=residents[1].personality="chaotic";foodCooldown=0;startFoodDrop(.5,.2);var event=foodEvent;updateFoodEvent(1.5);residents[0].x=.03;residents[1].x=event.x;residents[1].y=event.y;updateFoodEvent(.05)');
+  assert.equal(run('event.winner'),run('residents[1]'));
+  assert.equal(run('event.phase'),'eating');assert.equal(run('event.el.classList.contains("hidden")'),true);
+  assert.equal(run('residents[0].eventRole'),null);
+  run('for(let i=0;i<1500&&foodEvent;i++)updateFoodEvent(.05)');
+  assert.equal(run('foodEvent'),null);
+  assert.equal(run('residents.filter(r=>r.dead).length'),1);
+  assert.equal(run('event.winner.state'),'normal');assert.equal(run('event.winner.eventRole'),null);
+  assert.equal(run('event.victim.sign.classList.contains("hidden")'),false);
+  assert.equal(run('event.victim.state'),'dead');
+  assert.equal(run('event.victim.el.dataset.reaction'),'dead');
+  assert.equal(run('foodCooldown>=35'),true);
+  run('var dead=event.victim,oldX=dead.x,oldY=dead.y;calm(dead);react(dead,"curious",3);for(let i=0;i<1000;i++)updateResident(dead,.05)');
+  assert.equal(run('dead.x'),run('oldX'));assert.equal(run('dead.y'),run('oldY'));
+  assert.equal(run('dead.state'),'dead');assert.equal(run('dead.sign.classList.contains("hidden")'),false);
+});
+test('new arrivals and population cleanup never remove or revive a corpse',()=>{
+  const {run}=setup();
+  run('spawnResident("DEAD");var dead=residents[0];killResident(dead);for(let i=0;i<30;i++)spawnResident("LIVING")');
+  assert.equal(run('residents.includes(dead)'),true);
+  assert.equal(run('Boolean(dead.el.removed)'),false);
+  assert.equal(run('residents.filter(r=>!r.dead).length'),24);
+  assert.equal(run('dead.state'),'dead');
+});

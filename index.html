@@ -33,7 +33,7 @@ const animals=[
 {name:"Camel",title:"Camel"},{name:"Giraffe",title:"Giraffe"},{name:"Elephant",title:"Elephant"},{name:"Lion",title:"Lion"},{name:"Tiger",title:"Tiger"},{name:"Zebra",title:"Zebra"},{name:"Hippopotamus",title:"Hippopotamus"},{name:"Rhinoceros",title:"Rhinoceros"},{name:"Kangaroo",title:"Kangaroo"},{name:"Koala",title:"Koala"},{name:"Giant Panda",title:"Giant panda"},{name:"Gorilla",title:"Gorilla"},{name:"Chimpanzee",title:"Chimpanzee"},{name:"Orangutan",title:"Orangutan"},{name:"Wolf",title:"Wolf"},{name:"Red Fox",title:"Red fox"},{name:"Brown Bear",title:"Brown bear"},{name:"Rabbit",title:"Rabbit"},{name:"Horse",title:"Horse"},{name:"Cow",title:"Cattle"},{name:"Goat",title:"Goat"},{name:"Sheep",title:"Sheep"},{name:"Pig",title:"Pig"},{name:"Dog",title:"Dog"},{name:"Cat",title:"Cat"},{name:"Otter",title:"Otter"},{name:"Beaver",title:"Beaver"},{name:"Raccoon",title:"Raccoon"},{name:"Deer",title:"Deer"},{name:"Moose",title:"Moose"},{name:"Penguin",title:"Penguin"},{name:"Ostrich",title:"Common ostrich"},{name:"Flamingo",title:"Flamingo"},{name:"Peacock",title:"Peafowl"},{name:"Eagle",title:"Eagle"},{name:"Owl",title:"Owl"},{name:"Parrot",title:"Parrot"},{name:"Crow",title:"Crow"},{name:"Crocodile",title:"Crocodile"},{name:"Alligator",title:"Alligator"},{name:"Turtle",title:"Turtle"},{name:"Snake",title:"Snake"},{name:"Iguana",title:"Iguana"},{name:"Frog",title:"Frog"},{name:"Salamander",title:"Salamander"},{name:"Shark",title:"Shark"},{name:"Blue Whale",title:"Blue whale"},{name:"Dolphin",title:"Dolphin"},{name:"Octopus",title:"Octopus"},{name:"Squid",title:"Squid"},{name:"Crab",title:"Crab"},{name:"Lobster",title:"Lobster"},{name:"Jellyfish",title:"Jellyfish"},{name:"Butterfly",title:"Butterfly"},{name:"Bee",title:"Bee"},{name:"Beetle",title:"Beetle"},{name:"Dragonfly",title:"Dragonfly"},{name:"Spider",title:"Spider"},{name:"Scorpion",title:"Scorpion"},{name:"Seal",title:"Pinniped"},{name:"Walrus",title:"Walrus"},{name:"Sloth",title:"Sloth"},{name:"Armadillo",title:"Armadillo"},{name:"Anteater",title:"Anteater"},{name:"Llama",title:"Llama"},{name:"Alpaca",title:"Alpaca"}
 ];
 const startScreen=document.getElementById("startScreen"),revealScreen=document.getElementById("revealScreen"),mashScreen=document.getElementById("mashScreen"),mixButton=document.getElementById("mixButton"),mixAgainButton=document.getElementById("mixAgainButton"),revealLabel=document.getElementById("revealLabel"),revealName=document.getElementById("revealName"),revealImage=document.getElementById("revealImage"),revealPhotoWrap=document.getElementById("revealPhotoWrap"),generationText=document.getElementById("generation"),countdownText=document.getElementById("countdown"),impactFlash=document.getElementById("impactFlash"),impactText=document.getElementById("impactText");
-let generation=1,countdown=25,timer=null,isRunning=false;
+let generation=1,countdown=25,timer=null,isRunning=false,openingRemaining=6;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function randomAnimal(){return animals[Math.floor(Math.random()*animals.length)]}
 function mashNames(a,b){const first=a.replace(/\s+/g,""),second=b.replace(/\s+/g,"");const cutA=Math.max(2,Math.ceil(first.length/2)),cutB=Math.floor(second.length/2);return(first.substring(0,cutA)+second.substring(cutB)).toUpperCase()}
@@ -61,10 +61,62 @@ async function dramaticMash(a,b){
   generationText.textContent=String(generation).padStart(3,"0");
   mashScreen.classList.remove("hidden");
   generation++;
-  startCountdown();
 }
 function startCountdown(){clearInterval(timer);countdown=25;countdownText.textContent=countdown;timer=setInterval(()=>{countdown--;countdownText.textContent=countdown;if(countdown<=0){clearInterval(timer);beginMix()}},1000)}
-async function beginMix(){if(isRunning)return;startMusic();playSfx(.65, 1);isRunning=true;clearInterval(timer);startScreen.classList.add("hidden");mashScreen.classList.add("hidden");revealScreen.classList.remove("hidden");revealLabel.textContent="FINDING YOUR ANIMALS";revealName.textContent="SEARCHING...";revealName.classList.add("show");revealPhotoWrap.classList.remove("show");let success=false;for(let attempt=0;attempt<2&&!success;attempt++){let a=randomAnimal(),b=randomAnimal();while(a.title===b.title)b=randomAnimal();try{const[urlA,urlB]=await Promise.all([loadAnimal(a),loadAnimal(b)]);success=true;resetRevealAnimation();await sleep(350);await revealAnimal("ANIMAL A",a,urlA);await revealAnimal("ANIMAL B",b,urlB);await dramaticMash(a,b)}catch(error){console.warn("Retrying specimen search:",error)}}if(!success){revealLabel.textContent="SYSTEM ERROR";revealName.textContent="TRY ANOTHER MIX";revealName.classList.add("show");await sleep(1800);revealScreen.classList.add("hidden");startScreen.classList.remove("hidden")}isRunning=false}
+async function generateNextCreature(){
+  startScreen.classList.add("hidden");
+  mashScreen.classList.add("hidden");
+  revealScreen.classList.remove("hidden");
+  revealLabel.textContent="FINDING YOUR ANIMALS";
+  revealName.textContent="SEARCHING...";
+  revealName.classList.add("show");
+  revealPhotoWrap.classList.remove("show");
+  for(let attempt=0;attempt<2;attempt++){
+    const a=randomAnimal();let b=randomAnimal();
+    while(a.title===b.title)b=randomAnimal();
+    try{
+      const [urlA,urlB]=await Promise.all([loadAnimal(a),loadAnimal(b)]);
+      resetRevealAnimation();
+      await sleep(350);
+      await revealAnimal("ANIMAL A",a,urlA);
+      await revealAnimal("ANIMAL B",b,urlB);
+      await dramaticMash(a,b);
+      return true;
+    }catch(error){console.warn("Retrying specimen search:",error)}
+  }
+  return false;
+}
+async function beginMix(){
+  if(isRunning)return;
+  isRunning=true;
+  mixButton.disabled=mixAgainButton.disabled=true;
+  clearInterval(timer);
+  countdownText.parentElement.hidden=true;
+  startMusic();playSfx(.65,1);
+  try{
+    // On a fresh game, fill the meadow before starting timed single creations.
+    // Keep remaining progress if a generation fails and the player retries.
+    const batchSize=openingRemaining||1;
+    for(let i=0;i<batchSize;i++){
+      if(!await generateNextCreature()){
+        revealLabel.textContent="SYSTEM ERROR";
+        revealName.textContent="TRY ANOTHER MIX";
+        revealName.classList.add("show");
+        await sleep(1800);
+        revealScreen.classList.add("hidden");
+        mashScreen.classList.add("hidden");
+        startScreen.classList.remove("hidden");
+        return;
+      }
+      if(openingRemaining>0)openingRemaining--;
+    }
+    countdownText.parentElement.hidden=false;
+    startCountdown();
+  }finally{
+    isRunning=false;
+    mixButton.disabled=mixAgainButton.disabled=false;
+  }
+}
 mixButton.addEventListener("click",beginMix);mixAgainButton.addEventListener("click",beginMix);
 
 </script>

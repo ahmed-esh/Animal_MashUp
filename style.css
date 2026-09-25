@@ -27,3 +27,14 @@
 .resident[data-reaction="dead"] .resident-name{opacity:.65}
 @keyframes scuffle{from{transform:translate(-4px,-3px) rotate(-9deg)}to{transform:translate(4px,0) rotate(9deg)}}
 @media(prefers-reduced-motion:reduce){.resident.fighting .resident-sprite,.resident.fighting::after{animation:none!important}}
+
+#world{transition:transform 1.2s ease-in-out}
+#world.romance-camera{transform:scale(1.7)}
+.resident.baby{width:42px;height:42px}
+.resident.baby .resident-name{bottom:44px;font-size:10px}
+.resident.baby .reaction-sign{width:16px;height:16px}
+.resident.cuddling .resident-sprite{animation:cuddle .9s ease-in-out infinite alternate}
+.romance-heart{position:absolute;width:22px;height:22px;object-fit:contain;image-rendering:pixelated;z-index:110;pointer-events:none}
+@keyframes cuddle{from{transform:translateY(0) rotate(-5deg)}to{transform:translateY(-3px) rotate(5deg)}}
+@media(max-width:650px){.resident.baby{width:33px;height:33px}.resident.baby .resident-name{bottom:35px}}
+@media(prefers-reduced-motion:reduce){#world.romance-camera{transform:none}.resident.cuddling .resident-sprite{animation:none}}

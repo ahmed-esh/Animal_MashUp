@@ -82,7 +82,7 @@ function calm(r){
   r.pause=between(.6,2);r.target=r.personality==='sleepy'?treePosition():between(.04,.92);
   r.eventIn=between(12,24);
 }
-function spawnResident(name){
+function spawnResident(name,options={}){
   const el=document.createElement('div');el.className='resident resident-arrival';
   const shadow=document.createElement('div');shadow.className='resident-shadow';
   const label=document.createElement('span');label.className='resident-name';label.textContent=name;
@@ -90,7 +90,8 @@ function spawnResident(name){
   const sign=document.createElement('img');sign.className='reaction-sign hidden';sign.alt='';
   el.append(shadow,sprite,label,sign);document.getElementById('residents').append(el);
   const personality=['sleepy','curious','shy','chaotic'][Math.floor(Math.random()*4)];
-  const r={el,sprite,sign,personality,x:between(.28,.73),y:between(.81,.91),target:between(.04,.92),speed:between(.014,.028),pause:0,state:'normal',stateTime:0,cooldown:0,eventIn:between(7,16),focus:null};
+  const r={el,sprite,sign,name,baby:!!options.baby,matingCooldown:0,personality,x:between(.28,.73),y:between(.81,.91),target:between(.04,.92),speed:between(.014,.028),pause:0,state:'normal',stateTime:0,cooldown:0,eventIn:between(7,16),focus:null};
+  if(options.baby){el.classList.add('baby');r.x=options.x;r.y=options.y}
   if(personality==='sleepy'){r.speed*=.65;r.target=treePosition()}
   if(personality==='shy')r.speed*=.85;
   el.dataset.reaction='normal';
@@ -106,6 +107,7 @@ function spawnResident(name){
     const [removed]=residents.splice(index,1);removed.el.remove();
     residents.forEach(other=>{if(other.focus===removed)calm(other)});
   }
+  return r;
 }
 function residentDistance(a,b){return Math.hypot((a.x-b.x)*innerWidth,(a.y-b.y)*innerHeight)}
 function noticeBird(){
@@ -157,7 +159,7 @@ function updateResident(r,dt){
   renderResident(r);
 }
 function renderResident(r){
-  const size=innerWidth<650?60:76;
+  const size=(innerWidth<650?60:76)*(r.baby?.55:1);
   r.el.style.transform=`translate(${Math.max(2,Math.min(innerWidth-size-2,r.x*(innerWidth-size)))}px,${r.y*innerHeight-size}px)`;
   r.el.style.zIndex=Math.round(r.y*100);
 }
@@ -166,7 +168,7 @@ let foodEvent=null,foodCooldown=between(20,40),foodArt='assests/food.png';
 prepareArtwork(foodArt).then(url=>{foodArt=url;if(foodEvent)foodEvent.el.src=url}).catch(()=>{});
 function canDropFood(){
   const living=residents.filter(r=>!r.dead);
-  return !foodEvent&&foodCooldown<=0&&living.length>=6&&living.some(r=>r.personality==='chaotic');
+  return !matingEvent&&!foodEvent&&foodCooldown<=0&&living.length>=6&&living.some(r=>r.personality==='chaotic');
 }
 function setEventRole(r,role,reaction){
   r.eventRole=role;r.state=reaction;r.focus=null;r.pause=0;
@@ -186,7 +188,7 @@ function startFoodDrop(progress,height){
   return true;
 }
 function groundPoint(r){
-  const size=innerWidth<650?60:76;
+  const size=(innerWidth<650?60:76)*(r.baby?.55:1);
   return {x:r.x*(innerWidth-size)+size/2,y:r.y*innerHeight-8};
 }
 function moveToEvent(r,target,dt){
@@ -249,6 +251,70 @@ function updateFoodEvent(dt){
     killResident(event.victim);finishFoodEvent();
   }
 }
+// Isolated adult pairs cuddle; babies never participate in mating events.
+let matingEvent=null,matingCheck=3;
+const heartArt='assests/heart pixel art 254x254.png';
+function isolatedPair(){
+  const living=residents.filter(r=>!r.dead);
+  const available=living.filter(r=>!r.baby&&!r.eventRole&&r.matingCooldown<=0&&r.state==='normal');
+  for(let i=0;i<available.length;i++)for(let j=i+1;j<available.length;j++){
+    const a=available[i],b=available[j];
+    const sameEdge=(a.x<.2&&b.x<.2)||(a.x>.8&&b.x>.8);
+    if(!sameEdge||residentDistance(a,b)>100)continue;
+    if(living.some(r=>r!==a&&r!==b&&(residentDistance(r,a)<190||residentDistance(r,b)<190)))continue;
+    return [a,b];
+  }
+  return null;
+}
+function startMatingEvent(pair){
+  if(foodEvent||matingEvent)return;
+  const [a,b]=pair;
+  const x=(a.x+b.x)/2,y=(a.y+b.y)/2;
+  a.x=boundX(x-.025);b.x=boundX(x+.025);a.y=b.y=y;
+  a.sprite.style.scale='1 1';b.sprite.style.scale='-1 1';
+  for(const r of pair){r.eventRole='mating';r.sign.classList.add('hidden');r.el.classList.add('cuddling')}
+  matingEvent={pair,x,y,time:0,heartIn:0,hearts:[]};
+  const world=document.getElementById('world');
+  world.style.transformOrigin=`${x*100}% ${y*100}%`;
+  world.classList.add('romance-camera');
+}
+function finishMatingEvent(birth=true){
+  const event=matingEvent;if(!event)return;
+  const [a,b]=event.pair;
+  // Spawn while the parents are protected from population cleanup.
+  if(birth&&!a.dead&&!b.dead){
+    const name=typeof mashNames==='function'?mashNames(a.name,b.name):a.name.slice(0,3)+b.name.slice(-3);
+    spawnResident(name,{baby:true,x:boundX(event.x),y:Math.min(.92,event.y+.025)});
+  }
+  for(const r of event.pair){r.eventRole=null;r.el.classList.remove('cuddling');r.matingCooldown=90;calm(r)}
+  event.hearts.forEach(h=>h.el.remove());
+  document.getElementById('world').classList.remove('romance-camera');
+  matingEvent=null;matingCheck=5;
+}
+function updateMatingEvent(dt){
+  for(const r of residents)r.matingCooldown=Math.max(0,r.matingCooldown-dt);
+  if(!matingEvent){
+    matingCheck-=dt;
+    // Let the photo sequence finish before taking over the camera.
+    if(matingCheck<=0&&!foodEvent&&(typeof isRunning==='undefined'||!isRunning)){
+      matingCheck=3;const pair=isolatedPair();if(pair)startMatingEvent(pair);
+    }
+    return;
+  }
+  const event=matingEvent;
+  if(event.pair.some(r=>r.dead||!residents.includes(r))){finishMatingEvent(false);return}
+  event.time+=dt;event.heartIn-=dt;
+  if(event.heartIn<=0){
+    event.heartIn=.3;
+    const el=document.createElement('img');el.src=heartArt;el.alt='';el.className='romance-heart';
+    const point=groundPoint(event);
+    el.style.left=`${point.x+between(-35,35)}px`;el.style.top=`${point.y-between(65,90)}px`;
+    document.getElementById('residents').append(el);event.hearts.push({el,age:0});
+  }
+  for(const h of event.hearts){h.age+=dt;h.el.style.opacity=String(Math.max(0,1-h.age/2.4));h.el.style.transform=`translateY(${-h.age*22}px)`}
+  event.hearts=event.hearts.filter(h=>{if(h.age>=2.4){h.el.remove();return false}return true});
+  if(event.time>=10)finishMatingEvent();
+}
 let lastTime=0,birdAt=4,birdFlight=null,direction=1;
 const bird=document.getElementById('bird');
 function tick(time){
@@ -256,6 +322,7 @@ function tick(time){
   if(!document.hidden){
     foodCooldown=Math.max(0,foodCooldown-dt);
     updateFoodEvent(dt);
+    updateMatingEvent(dt);
     for(const r of residents)updateResident(r,dt);
     if(!reducedMotion.matches){
       birdAt-=dt;

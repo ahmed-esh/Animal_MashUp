@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 function setup(){
   function element(){const classes=new Set();return {style:{},dataset:{},children:[],classList:{add:k=>classes.add(k),remove:k=>classes.delete(k),contains:k=>classes.has(k),toggle:(k,on)=>on?classes.add(k):classes.delete(k)},append(...children){this.children.push(...children)},remove(){this.removed=true}}}
-  const nodes={residents:element(),bird:{firstElementChild:element()}};
+  const nodes={world:element(),residents:element(),bird:{firstElementChild:element()}};
   const sandbox={Math,innerWidth:1200,innerHeight:800,reducedMotion:{matches:false},document:{hidden:false,createElement:element,getElementById:id=>nodes[id]},randomSprite:()=> 'sprite.png',prepareArtwork:async path=>path,requestAnimationFrame(){}};
   vm.createContext(sandbox);
   const source=fs.readFileSync(require('node:path').join(__dirname,'../world.js'),'utf8');
@@ -90,4 +90,28 @@ test('new arrivals and population cleanup never remove or revive a corpse',()=>{
   assert.equal(run('Boolean(dead.el.removed)'),false);
   assert.equal(run('residents.filter(r=>!r.dead).length'),24);
   assert.equal(run('dead.state'),'dead');
+});
+
+test('mating requires isolated adults at the same edge',()=>{
+  const {run}=setup();
+  run('spawnResident("A");spawnResident("B");residents.forEach(r=>{r.state="normal";r.x=.12;r.y=.85});');
+  assert.equal(run('isolatedPair().length'),2);
+  run('residents[0].baby=true');assert.equal(run('isolatedPair()'),null);
+  run('residents[0].baby=false;residents[0].x=.5');assert.equal(run('isolatedPair()'),null);
+  run('residents[0].x=.12;spawnResident("C");residents.forEach(r=>{r.x=.12;r.y=.85;r.state="normal"})');
+  assert.equal(run('isolatedPair()'),null);
+});
+test('ten-second mating zoom cleans up and creates one small baby',()=>{
+  const {run}=setup();
+  run('spawnResident("A");spawnResident("B");residents.forEach(r=>{r.state="normal";r.x=.12;r.y=.85});startMatingEvent(isolatedPair())');
+  assert.equal(run('document.getElementById("world").classList.contains("romance-camera")'),true);
+  run('for(let i=0;i<19;i++)updateMatingEvent(.5)');
+  assert.equal(run('residents.length'),2);
+  assert.equal(run('matingEvent.hearts.length>0'),true);
+  run('updateMatingEvent(.5)');
+  assert.equal(run('matingEvent'),null);assert.equal(run('residents.length'),3);
+  assert.equal(run('residents[2].baby'),true);
+  assert.equal(run('document.getElementById("world").classList.contains("romance-camera")'),false);
+  assert.equal(run('residents[0].eventRole'),null);
+  assert.equal(run('residents[0].matingCooldown'),90);
 });

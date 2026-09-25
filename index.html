@@ -62,7 +62,7 @@ async function dramaticMash(a,b){
   mashScreen.classList.remove("hidden");
   generation++;
 }
-function startCountdown(){clearInterval(timer);countdown=25;countdownText.textContent=countdown;timer=setInterval(()=>{countdown--;countdownText.textContent=countdown;if(countdown<=0){clearInterval(timer);beginMix()}},1000)}
+function startCountdown(){clearInterval(timer);countdown=25;countdownText.textContent=countdown;timer=setInterval(()=>{if(typeof matingEvent!=="undefined"&&matingEvent)return;countdown--;countdownText.textContent=countdown;if(countdown<=0){clearInterval(timer);beginMix()}},1000)}
 async function generateNextCreature(){
   startScreen.classList.add("hidden");
   mashScreen.classList.add("hidden");
@@ -87,7 +87,7 @@ async function generateNextCreature(){
   return false;
 }
 async function beginMix(){
-  if(isRunning)return;
+  if(isRunning||(typeof matingEvent!=="undefined"&&matingEvent))return;
   isRunning=true;
   mixButton.disabled=mixAgainButton.disabled=true;
   clearInterval(timer);
